@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô phỏng 3D Kim tinh và Thủy tinh - Venus & Mercury 3D Simulation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS2DRenderer.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(to bottom, #000000, #0a0a1a);
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+
+        #canvas-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+        }
+
+        #three-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        #info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            max-width: 350px;
+            backdrop-filter: blur(10px);
+        }
+
+        #info-panel h1 {
+            font-size: 24px;
+            margin-bottom: 15px;
+            color: #ffd700;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        .angle-toggle {
+            margin-top: 10px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.3s;
+        }
+
+        .angle-toggle:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .angle-toggle input {
+            margin-right: 8px;
+            cursor: pointer;
+        }
+
+        .planet-info {
+            margin: 15px 0;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            border-left: 3px solid;
+        }
+
+        .planet-info.mercury {
+            border-color: #9ca3af;
+        }
+
+        .planet-info.venus {
+            border-color: #fbbf24;
+        }
+
+        .planet-info.earth {
+            border-color: #3b82f6;
+        }
+
+        .planet-name {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        .planet-data {
+            font-size: 12px;
+            line-height: 1.6;
+            color: #d1d5db;
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        input[type="range"] {
+            width: 150px;
+        }
+
+        .legend {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 8px 0;
+            font-size: 14px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .phenomenon {
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(255, 215, 0, 0.1);
+            border-radius: 5px;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .phenomenon-title {
+            font-weight: bold;
+            color: #fbbf24;
+            margin-bottom: 5px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .pulse {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        #center-selector {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        #center-selector h4 {
+            margin: 0 0 10px 0;
+            color: #ffd700;
+            font-size: 14px;
+        }
+
+        .center-btn {
+            display: block;
+            width: 100%;
+            margin: 5px 0;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 13px;
+        }
+
+        .center-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .center-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: #667eea;
+            box-shadow: 0 0 15px rgba(102, 126, 234, 0.5);
+        }
+
+        .angle-label-2d {
+            padding: 4px 8px;
+            background: rgba(0, 0, 0, 0.85);
+            border: 2px solid;
+            border-radius: 6px;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            font-family: 'Courier New', monospace;
+            pointer-events: none;
+            user-select: none;
+            white-space: nowrap;
+            text-shadow: 0 0 8px rgba(0, 0, 0, 1), 0 0 4px rgba(0, 0, 0, 1);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.8), inset 0 0 10px rgba(255, 255, 255, 0.1);
+        }
+
+        /* Nút Toggle GUI */
+        #toggle-gui-btn {
+            position: fixed;
+            top: 20px;
+            right: 185px;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            padding: 10px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: bold;
+            transition: all 0.3s;
+            box-shadow: 0 4px 20px rgba(255, 107, 107, 0.5);
+            z-index: 10000;
+            backdrop-filter: blur(10px);
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #toggle-gui-btn:hover {
+            transform: translateY(-2px) scale(1.1);
+            box-shadow: 0 6px 25px rgba(255, 107, 107, 0.7);
+            background: linear-gradient(135deg, #ff5252 0%, #e63946 100%);
+        }
+
+        #toggle-gui-btn:active {
+            transform: translateY(0) scale(1);
+        }
+
+        /* Ẩn các panels khi GUI tắt */
+        .gui-panel {
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+
+        .gui-panel.hidden {
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Nút Toggle GUI -->
+    <button id="toggle-gui-btn">👁️</button>
+
+    <div id="canvas-container">
+        <div id="three-canvas"></div>
+    </div>
+
+    <div id="info-panel" class="gui-panel">
+        <h1>🌟 Hệ Mặt Trời Nội 3D</h1>
+        
+        <div class="angle-toggle">
+            <label>
+                <input type="checkbox" id="showAngles" checked>
+                📐 Hiển thị góc và đường nối
+            </label>
+        </div>
+        
+        <div class="planet-info mercury">
+            <div class="planet-name">☿ THỦY TINH (Mercury)</div>
+            <div class="planet-data">
+                <div>Chu kỳ quỹ đạo: <span id="mercury-period">88 ngày</span></div>
+                <div>Góc từ Mặt Trời: <span id="mercury-angle">0°</span></div>
+                <div>Khoảng cách: <span id="mercury-distance">0 AU</span></div>
+            </div>
+        </div>
+
+        <div class="planet-info venus">
+            <div class="planet-name">♀ KIM TINH (Venus)</div>
+            <div class="planet-data">
+                <div>Chu kỳ quỹ đạo: <span id="venus-period">225 ngày</span></div>
+                <div>Góc từ Mặt Trời: <span id="venus-angle">0°</span></div>
+                <div>Góc ly giác cực đại: <span id="venus-elongation">48°</span></div>
+                <div>Trạng thái: <span id="venus-phase">---</span></div>
+            </div>
+        </div>
+
+        <div class="planet-info earth">
+            <div class="planet-name">⊕ TRÁI ĐẤT (Earth)</div>
+            <div class="planet-data">
+                <div>Chu kỳ quỹ đạo: <span id="earth-period">365 ngày</span></div>
+                <div>Vị trí góc: <span id="earth-angle">0°</span></div>
+            </div>
+        </div>
+
+        <div class="phenomenon">
+            <div class="phenomenon-title">📊 Hiện tượng quan sát</div>
+            <div id="phenomenon-text">
+                Kim tinh và Thủy tinh là các hành tinh nội, quỹ đạo nằm bên trong quỹ đạo Trái Đất.
+            </div>
+        </div>
+    </div>
+
+    <div class="legend gui-panel">
+        <div style="font-weight: bold; margin-bottom: 10px; color: #ffd700;">Chú thích</div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ffd700; box-shadow: 0 0 10px #ffd700;"></div>
+            <span>Mặt Trời</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #9ca3af;"></div>
+            <span>Thủy tinh</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #fbbf24;"></div>
+            <span>Kim tinh</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #3b82f6;"></div>
+            <span>Trái Đất</span>
+        </div>
+    </div>
+
+    <div id="center-selector" class="gui-panel">
+        <h4>🎯 Tâm quan sát</h4>
+        <button class="center-btn active" data-center="sun">☉ Mặt Trời</button>
+        <button class="center-btn" data-center="earth">⊕ Trái Đất</button>
+        <button class="center-btn" data-center="venus">♀ Kim tinh</button>
+        <button class="center-btn" data-center="mercury">☿ Thủy tinh</button>
+    </div>
+
+    <div id="controls" class="gui-panel">
+        <button id="playPause">⏸️ Tạm dừng</button>
+        <button id="reset">🔄 Đặt lại</button>
+        <div class="speed-control">
+            <label>Tốc độ:</label>
+            <input type="range" id="speed" min="0.1" max="50" step="0.1" value="1">
+            <span id="speed-value">1x</span>
+        </div>
+    </div>
+
+    <script>
+        // Three.js setup
+        let scene, camera, renderer, labelRenderer, controls;
+        let sun, mercury, venus, earth;
+        let mercuryOrbit, venusOrbit, earthOrbit;
+        let angleLines = [];
+        let angleLabels = [];
+        let planetLabels = [];
+        let showAngles = true;
+        let centerObject = 'sun'; // 'sun', 'earth', 'venus', 'mercury'
+        let raycaster, mouse;
+        
+        function initThreeJS() {
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000000);
+            
+            // Camera
+            camera = new THREE.PerspectiveCamera(
+                60,
+                window.innerWidth / window.innerHeight,
+                0.1,
+                10000
+            );
+            camera.position.set(0, 300, 400);
+            camera.lookAt(0, 0, 0);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: true,
+                logarithmicDepthBuffer: true // Better depth handling for close-up views
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('three-canvas').appendChild(renderer.domElement);
+            
+            // CSS2DRenderer for 2D labels
+            labelRenderer = new THREE.CSS2DRenderer();
+            labelRenderer.setSize(window.innerWidth, window.innerHeight);
+            labelRenderer.domElement.style.position = 'absolute';
+            labelRenderer.domElement.style.top = '0';
+            labelRenderer.domElement.style.pointerEvents = 'none';
+            document.getElementById('three-canvas').appendChild(labelRenderer.domElement);
+            
+            // OrbitControls for 3D navigation
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 20; // Allow closer zoom
+            controls.maxDistance = 1000;
+            controls.enablePan = true;
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x333333);
+            scene.add(ambientLight);
+            
+            const sunLight = new THREE.PointLight(0xffffff, 2, 1000);
+            sunLight.position.set(0, 0, 0);
+            sunLight.castShadow = true;
+            sunLight.shadow.mapSize.width = 2048;
+            sunLight.shadow.mapSize.height = 2048;
+            scene.add(sunLight);
+            
+            // Add stars
+            addStars();
+            
+            // Create Sun
+            createSun();
+            
+            // Create planets
+            createPlanets();
+            
+            // Create orbits
+            createOrbits();
+            
+            // Raycaster for clicking
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            
+            // Click event
+            renderer.domElement.addEventListener('click', onMouseClick);
+            
+            // Window resize handler
+            window.addEventListener('resize', onWindowResize);
+        }
+        
+        function onMouseClick(event) {
+            // Calculate mouse position in normalized device coordinates
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            
+            // Update the picking ray with the camera and mouse position
+            raycaster.setFromCamera(mouse, camera);
+            
+            // Calculate objects intersecting the picking ray
+            const intersects = raycaster.intersectObjects([sun, mercury, venus, earth]);
+            
+            if (intersects.length > 0) {
+                const clickedObject = intersects[0].object;
+                if (clickedObject === sun) {
+                    setCenterObject('sun');
+                } else if (clickedObject === mercury) {
+                    setCenterObject('mercury');
+                } else if (clickedObject === venus) {
+                    setCenterObject('venus');
+                } else if (clickedObject === earth) {
+                    setCenterObject('earth');
+                }
+            }
+        }
+        
+        function addStars() {
+            const starGeometry = new THREE.BufferGeometry();
+            const starVertices = [];
+            
+            for (let i = 0; i < 3000; i++) {
+                const x = (Math.random() - 0.5) * 2000;
+                const y = (Math.random() - 0.5) * 2000;
+                const z = (Math.random() - 0.5) * 2000;
+                starVertices.push(x, y, z);
+            }
+            
+            starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+            const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 2 });
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+        }
+        
+        function createSun() {
+            const sunGeometry = new THREE.SphereGeometry(15, 32, 32);
+            const sunMaterial = new THREE.MeshBasicMaterial({
+                color: 0xffd700,
+                emissive: 0xffaa00,
+                emissiveIntensity: 1
+            });
+            sun = new THREE.Mesh(sunGeometry, sunMaterial);
+            sun.name = 'Sun';
+            scene.add(sun);
+            
+            // Sun glow
+            const glowGeometry = new THREE.SphereGeometry(25, 32, 32);
+            const glowMaterial = new THREE.MeshBasicMaterial({
+                color: 0xffd700,
+                transparent: true,
+                opacity: 0.3
+            });
+            const sunGlow = new THREE.Mesh(glowGeometry, glowMaterial);
+            sun.add(sunGlow);
+        }
+        
+        function createPlanets() {
+            // Mercury
+            const mercuryGeometry = new THREE.SphereGeometry(4, 32, 32);
+            const mercuryMaterial = new THREE.MeshStandardMaterial({
+                color: 0x9ca3af,
+                metalness: 0.3,
+                roughness: 0.7
+            });
+            mercury = new THREE.Mesh(mercuryGeometry, mercuryMaterial);
+            mercury.castShadow = true;
+            mercury.receiveShadow = true;
+            mercury.name = 'Mercury';
+            scene.add(mercury);
+            
+            // Venus
+            const venusGeometry = new THREE.SphereGeometry(9, 32, 32);
+            const venusMaterial = new THREE.MeshStandardMaterial({
+                color: 0xfbbf24,
+                metalness: 0.2,
+                roughness: 0.8
+            });
+            venus = new THREE.Mesh(venusGeometry, venusMaterial);
+            venus.castShadow = true;
+            venus.receiveShadow = true;
+            venus.name = 'Venus';
+            scene.add(venus);
+            
+            // Earth
+            const earthGeometry = new THREE.SphereGeometry(10, 32, 32);
+            const earthMaterial = new THREE.MeshStandardMaterial({
+                color: 0x3b82f6,
+                metalness: 0.2,
+                roughness: 0.8
+            });
+            earth = new THREE.Mesh(earthGeometry, earthMaterial);
+            earth.castShadow = true;
+            earth.receiveShadow = true;
+            earth.name = 'Earth';
+            scene.add(earth);
+        }
+        
+        function createOrbits() {
+            // Mercury orbit
+            mercuryOrbit = createOrbitLine(PLANETS.mercury.orbitalRadius, 0x9ca3af);
+            scene.add(mercuryOrbit);
+            
+            // Venus orbit
+            venusOrbit = createOrbitLine(PLANETS.venus.orbitalRadius, 0xfbbf24);
+            scene.add(venusOrbit);
+            
+            // Earth orbit
+            earthOrbit = createOrbitLine(PLANETS.earth.orbitalRadius, 0x3b82f6);
+            scene.add(earthOrbit);
+        }
+        
+        function createOrbitLine(radius, color) {
+            const curve = new THREE.EllipseCurve(
+                0, 0,
+                radius, radius,
+                0, 2 * Math.PI,
+                false,
+                0
+            );
+            
+            const points = curve.getPoints(100);
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const material = new THREE.LineBasicMaterial({ 
+                color: color,
+                transparent: true,
+                opacity: 0.3,
+                depthTest: true,
+                depthWrite: false
+            });
+            
+            const orbit = new THREE.Line(geometry, material);
+            orbit.rotation.x = Math.PI / 2;
+            orbit.renderOrder = 1;
+            return orbit;
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Astronomical constants (in AU and Earth days)
+        const AU = 150; // 1 AU in pixels for 3D visualization
+        const SUN_RADIUS = 15;
+        
+        const PLANETS = {
+            mercury: {
+                name: 'Thủy tinh',
+                nameEn: 'Mercury',
+                orbitalRadius: 0.387 * AU, // 0.387 AU
+                orbitalPeriod: 87.969, // Earth days
+                radius: 4,
+                color: '#9ca3af',
+                glowColor: 'rgba(156, 163, 175, 0.3)',
+                angle: 0
+            },
+            venus: {
+                name: 'Kim tinh',
+                nameEn: 'Venus',
+                orbitalRadius: 0.723 * AU, // 0.723 AU
+                orbitalPeriod: 224.701, // Earth days
+                radius: 9,
+                color: '#fbbf24',
+                glowColor: 'rgba(251, 191, 36, 0.3)',
+                angle: Math.PI / 3 // Start at 60 degrees
+            },
+            earth: {
+                name: 'Trái Đất',
+                nameEn: 'Earth',
+                orbitalRadius: 1.0 * AU, // 1.0 AU
+                orbitalPeriod: 365.256, // Earth days
+                radius: 10,
+                color: '#3b82f6',
+                glowColor: 'rgba(59, 130, 246, 0.3)',
+                angle: 0
+            }
+        };
+
+        // Simulation state
+        let isPlaying = true;
+        let speed = 1;
+
+        // Functions for angle lines
+        function clearAngleLines() {
+            angleLines.forEach(line => scene.remove(line));
+            angleLines = [];
+            angleLabels.forEach(label => {
+                if (label.element && label.element.parentNode) {
+                    label.element.parentNode.removeChild(label.element);
+                }
+                scene.remove(label);
+            });
+            angleLabels = [];
+        }
+        
+        function createTextSprite(text, color = '#ffffff', fontSize = 16, bgOpacity = 0.7, bordered = true) {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = 256;
+            canvas.height = 64;
+            
+            context.font = `Bold ${fontSize}px Arial`;
+            context.fillStyle = `rgba(0, 0, 0, ${bgOpacity})`;
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            
+            if (bordered) {
+                context.strokeStyle = color;
+                context.lineWidth = 4;
+                context.strokeRect(3, 3, canvas.width - 6, canvas.height - 6);
+            }
+            
+            // Add glow effect
+            context.shadowColor = color;
+            context.shadowBlur = 15;
+            context.shadowOffsetX = 0;
+            context.shadowOffsetY = 0;
+            
+            context.fillStyle = color;
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            context.fillText(text, canvas.width / 2, canvas.height / 2);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            const spriteMaterial = new THREE.SpriteMaterial({ 
+                map: texture,
+                transparent: true,
+                depthTest: false,
+                depthWrite: false
+            });
+            const sprite = new THREE.Sprite(spriteMaterial);
+            sprite.scale.set(40, 10, 1);
+            
+            return sprite;
+        }
+        
+        function createPlanetLabel(name, color) {
+            const sprite = createTextSprite(name, color, 14, 0.8, true);
+            sprite.scale.set(25, 6.25, 1);
+            return sprite;
+        }
+        
+        function updatePlanetLabels() {
+            // Clear old labels
+            planetLabels.forEach(label => scene.remove(label));
+            planetLabels = [];
+            
+            // Sun label
+            const sunLabel = createPlanetLabel('☉ MẶT TRỜI', '#ffd700');
+            sunLabel.position.set(sun.position.x, sun.position.y + 25, sun.position.z);
+            scene.add(sunLabel);
+            planetLabels.push(sunLabel);
+            
+            // Mercury label
+            const mercuryLabel = createPlanetLabel('☿ THỦY TINH', '#9ca3af');
+            mercuryLabel.position.set(mercury.position.x, mercury.position.y + 15, mercury.position.z);
+            scene.add(mercuryLabel);
+            planetLabels.push(mercuryLabel);
+            
+            // Venus label
+            const venusLabel = createPlanetLabel('♀ KIM TINH', '#fbbf24');
+            venusLabel.position.set(venus.position.x, venus.position.y + 18, venus.position.z);
+            scene.add(venusLabel);
+            planetLabels.push(venusLabel);
+            
+            // Earth label
+            const earthLabel = createPlanetLabel('⊕ TRÁI ĐẤT', '#3b82f6');
+            earthLabel.position.set(earth.position.x, earth.position.y + 18, earth.position.z);
+            scene.add(earthLabel);
+            planetLabels.push(earthLabel);
+        }
+        
+        function createAngleLine(start, end, color) {
+            const points = [];
+            points.push(new THREE.Vector3(start.x, start.y, start.z));
+            points.push(new THREE.Vector3(end.x, end.y, end.z));
+            
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const material = new THREE.LineDashedMaterial({
+                color: color,
+                dashSize: 5,
+                gapSize: 3,
+                transparent: true,
+                opacity: 0.85, // Increased from 0.6 to 0.85
+                depthTest: false,
+                depthWrite: false,
+                linewidth: 2
+            });
+            
+            const line = new THREE.Line(geometry, material);
+            line.computeLineDistances();
+            line.renderOrder = 999;
+            return line;
+        }
+        
+        function createAngleArc(vertex, point1, point2, radius, color, labelText) {
+            // Calculate vectors from vertex to both points
+            const vec1 = new THREE.Vector3().subVectors(point1, vertex).normalize();
+            const vec2 = new THREE.Vector3().subVectors(point2, vertex).normalize();
+            
+            // Calculate angle between vectors
+            const angle = vec1.angleTo(vec2);
+            const angleDegrees = (angle * 180 / Math.PI).toFixed(1);
+            
+            // Create points for the arc (THICKER AND MORE VISIBLE)
+            const arcPoints = [];
+            const segments = 50;
+            for (let i = 0; i <= segments; i++) {
+                const t = i / segments;
+                const interpolatedVec = new THREE.Vector3().lerpVectors(vec1, vec2, t).normalize();
+                
+                const x = vertex.x + interpolatedVec.x * radius;
+                const y = vertex.y;
+                const z = vertex.z + interpolatedVec.z * radius;
+                
+                arcPoints.push(new THREE.Vector3(x, y, z));
+            }
+            
+            // Create arc line (THICKER with better visibility)
+            const arcGeometry = new THREE.BufferGeometry().setFromPoints(arcPoints);
+            const arcMaterial = new THREE.LineBasicMaterial({ 
+                color: color,
+                linewidth: 8, // Increased from 5
+                transparent: false,
+                opacity: 1,
+                depthTest: false,
+                depthWrite: false
+            });
+            const arc = new THREE.Line(arcGeometry, arcMaterial);
+            arc.renderOrder = 999;
+            
+            // Create 2D label for angle
+            const labelDiv = document.createElement('div');
+            labelDiv.className = 'angle-label-2d';
+            labelDiv.textContent = `${angleDegrees}°`;
+            labelDiv.style.borderColor = `#${color.toString(16).padStart(6, '0')}`;
+            labelDiv.style.color = `#${color.toString(16).padStart(6, '0')}`;
+            
+            const label = new THREE.CSS2DObject(labelDiv);
+            
+            // Position label at the middle of the arc
+            const midPoint = arcPoints[Math.floor(arcPoints.length / 2)];
+            label.position.copy(midPoint);
+            label.position.y += 5; // Slightly above the arc
+            
+            // Add extra visual markers at arc endpoints
+            const markers = [];
+            
+            // Start marker
+            const startMarker = new THREE.Mesh(
+                new THREE.SphereGeometry(1.5, 16, 16),
+                new THREE.MeshBasicMaterial({ 
+                    color: color,
+                    depthTest: false,
+                    depthWrite: false
+                })
+            );
+            startMarker.position.copy(arcPoints[0]);
+            startMarker.renderOrder = 999;
+            markers.push(startMarker);
+            
+            // End marker
+            const endMarker = new THREE.Mesh(
+                new THREE.SphereGeometry(1.5, 16, 16),
+                new THREE.MeshBasicMaterial({ 
+                    color: color,
+                    depthTest: false,
+                    depthWrite: false
+                })
+            );
+            endMarker.position.copy(arcPoints[arcPoints.length - 1]);
+            endMarker.renderOrder = 999;
+            markers.push(endMarker);
+            
+            return { arc, markers, label };
+        }
+        
+        function updateAngleLines() {
+            clearAngleLines();
+            
+            if (!showAngles) return;
+            
+            const earthPos = earth.position;
+            const sunPos = new THREE.Vector3(0, 0, 0);
+            const venusPos = venus.position;
+            const mercuryPos = mercury.position;
+            
+            // Line from Earth to Sun
+            const earthSunLine = createAngleLine(earthPos, sunPos, 0xffd700);
+            scene.add(earthSunLine);
+            angleLines.push(earthSunLine);
+            
+            // Line from Earth to Venus
+            const earthVenusLine = createAngleLine(earthPos, venusPos, 0xfbbf24);
+            scene.add(earthVenusLine);
+            angleLines.push(earthVenusLine);
+            
+            // Line from Earth to Mercury
+            const earthMercuryLine = createAngleLine(earthPos, mercuryPos, 0x9ca3af);
+            scene.add(earthMercuryLine);
+            angleLines.push(earthMercuryLine);
+            
+            // Line from Sun to Venus
+            const sunVenusLine = createAngleLine(sunPos, venusPos, 0xfbbf24);
+            sunVenusLine.material.opacity = 0.3;
+            scene.add(sunVenusLine);
+            angleLines.push(sunVenusLine);
+            
+            // Line from Sun to Mercury
+            const sunMercuryLine = createAngleLine(sunPos, mercuryPos, 0x9ca3af);
+            sunMercuryLine.material.opacity = 0.3;
+            scene.add(sunMercuryLine);
+            angleLines.push(sunMercuryLine);
+            
+            // Line from Sun to Earth (for angle visualization)
+            const sunEarthLine = createAngleLine(sunPos, earthPos, 0x3b82f6);
+            sunEarthLine.material.opacity = 0.6; // Increase opacity for better visibility
+            scene.add(sunEarthLine);
+            angleLines.push(sunEarthLine);
+            
+            // ===== ANGLE ARCS =====
+            
+            // 1. Venus elongation angle (at Earth: Sun-Earth-Venus)
+            const venusElongationArc = createAngleArc(earthPos, sunPos, venusPos, 25, 0xfbbf24, '♀');
+            scene.add(venusElongationArc.arc);
+            angleLines.push(venusElongationArc.arc);
+            scene.add(venusElongationArc.label);
+            angleLabels.push(venusElongationArc.label);
+            venusElongationArc.markers.forEach(m => { scene.add(m); angleLines.push(m); });
+            
+            // 2. Mercury elongation angle (at Earth: Sun-Earth-Mercury)
+            const mercuryElongationArc = createAngleArc(earthPos, sunPos, mercuryPos, 25, 0x9ca3af, '☿');
+            scene.add(mercuryElongationArc.arc);
+            angleLines.push(mercuryElongationArc.arc);
+            scene.add(mercuryElongationArc.label);
+            angleLabels.push(mercuryElongationArc.label);
+            mercuryElongationArc.markers.forEach(m => { scene.add(m); angleLines.push(m); });
+            
+            // 3. Venus-Earth angle from Sun (at Sun: Venus-Sun-Earth)
+            const venusEarthArc = createAngleArc(sunPos, venusPos, earthPos, 35, 0xff6b9d, '♀-⊕');
+            scene.add(venusEarthArc.arc);
+            angleLines.push(venusEarthArc.arc);
+            scene.add(venusEarthArc.label);
+            angleLabels.push(venusEarthArc.label);
+            venusEarthArc.markers.forEach(m => { scene.add(m); angleLines.push(m); });
+            
+            // 4. Mercury-Earth angle from Sun (at Sun: Mercury-Sun-Earth)
+            const mercuryEarthArc = createAngleArc(sunPos, mercuryPos, earthPos, 30, 0xb0c4de, '☿-⊕');
+            scene.add(mercuryEarthArc.arc);
+            angleLines.push(mercuryEarthArc.arc);
+            scene.add(mercuryEarthArc.label);
+            angleLabels.push(mercuryEarthArc.label);
+            mercuryEarthArc.markers.forEach(m => { scene.add(m); angleLines.push(m); });
+            
+            // 5. Venus-Mercury angle from Sun (at Sun: Venus-Sun-Mercury)
+            const venusMercuryArc = createAngleArc(sunPos, venusPos, mercuryPos, 40, 0xc084fc, '♀-☿');
+            scene.add(venusMercuryArc.arc);
+            angleLines.push(venusMercuryArc.arc);
+            scene.add(venusMercuryArc.label);
+            angleLabels.push(venusMercuryArc.label);
+            venusMercuryArc.markers.forEach(m => { scene.add(m); angleLines.push(m); });
+        }
+
+        function calculateElongation(planetPos, earthPos) {
+            const sunPos = new THREE.Vector3(0, 0, 0);
+            
+            // Vectors from Earth to Sun and Earth to Planet
+            const sunVec = new THREE.Vector3().subVectors(sunPos, earthPos);
+            const planetVec = new THREE.Vector3().subVectors(planetPos, earthPos);
+            
+            // Calculate angle between vectors
+            const angle = sunVec.angleTo(planetVec);
+            
+            return (angle * 180 / Math.PI).toFixed(1);
+        }
+        
+        function calculateAngleFromSun(planet1Pos, planet2Pos) {
+            // Calculate angle between two planets as seen from the Sun
+            const angle1 = Math.atan2(planet1Pos.z, planet1Pos.x);
+            const angle2 = Math.atan2(planet2Pos.z, planet2Pos.x);
+            let diff = Math.abs(angle1 - angle2);
+            
+            // Normalize to 0-180 range
+            if (diff > Math.PI) {
+                diff = 2 * Math.PI - diff;
+            }
+            
+            return (diff * 180 / Math.PI).toFixed(1);
+        }
+
+        function determineVenusPhase(elongation, venusAngle, earthAngle) {
+            const relativeAngle = ((venusAngle - earthAngle) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+            const relativeAngleDeg = relativeAngle * 180 / Math.PI;
+            
+            if (elongation < 10) {
+                if (relativeAngleDeg < 180) {
+                    return '☀️ Hợp trên (Superior Conjunction)';
+                } else {
+                    return '🌑 Hợp dưới (Inferior Conjunction)';
+                }
+            }
+            
+            // Check if Venus is ahead or behind Earth
+            if (relativeAngleDeg > 0 && relativeAngleDeg < 180) {
+                if (elongation > 40) {
+                    return '⭐ SAO HÔM - Cực đại phía Đông (Evening Star - Max Elongation East)';
+                }
+                return '⭐ SAO HÔM (Evening Star) - Thấy sau hoàng hôn';
+            } else {
+                if (elongation > 40) {
+                    return '⭐ SAO MAI - Cực đại phía Tây (Morning Star - Max Elongation West)';
+                }
+                return '⭐ SAO MAI (Morning Star) - Thấy trước bình minh';
+            }
+        }
+
+        function setCenterObject(center) {
+            centerObject = center;
+            
+            // Update button states
+            document.querySelectorAll('.center-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.center === center) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            // Update camera focus
+            updateCameraTarget();
+        }
+        
+        function updateCameraTarget() {
+            let targetPos = new THREE.Vector3(0, 0, 0);
+            
+            switch(centerObject) {
+                case 'sun':
+                    targetPos.set(0, 0, 0);
+                    break;
+                case 'earth':
+                    targetPos.copy(earth.position);
+                    break;
+                case 'venus':
+                    targetPos.copy(venus.position);
+                    break;
+                case 'mercury':
+                    targetPos.copy(mercury.position);
+                    break;
+            }
+            
+            controls.target.copy(targetPos);
+        }
+        
+        function calculateAstronomicalEvents() {
+            const events = [];
+            const currentDate = new Date(2025, 0, 1);
+            const endDate = new Date(2075, 0, 1); // 50 years for comprehensive coverage
+            
+            let tempTime = 0;
+            const step = 1; // Check every day
+            
+            while (currentDate < endDate) {
+                // Calculate positions
+                const mercuryAngle = (2 * Math.PI / PLANETS.mercury.orbitalPeriod) * tempTime;
+                const venusAngle = Math.PI / 3 + (2 * Math.PI / PLANETS.venus.orbitalPeriod) * tempTime;
+                const earthAngle = (2 * Math.PI / PLANETS.earth.orbitalPeriod) * tempTime;
+                
+                const mercuryPos = new THREE.Vector3(
+                    Math.cos(mercuryAngle) * PLANETS.mercury.orbitalRadius,
+                    0,
+                    Math.sin(mercuryAngle) * PLANETS.mercury.orbitalRadius
+                );
+                
+                const venusPos = new THREE.Vector3(
+                    Math.cos(venusAngle) * PLANETS.venus.orbitalRadius,
+                    0,
+                    Math.sin(venusAngle) * PLANETS.venus.orbitalRadius
+                );
+                
+                const earthPos = new THREE.Vector3(
+                    Math.cos(earthAngle) * PLANETS.earth.orbitalRadius,
+                    0,
+                    Math.sin(earthAngle) * PLANETS.earth.orbitalRadius
+                );
+                
+                const venusElongation = parseFloat(calculateElongation(venusPos, earthPos));
+                const mercuryElongation = parseFloat(calculateElongation(mercuryPos, earthPos));
+                
+                // Check for maximum elongation Venus (>= 45°) - More lenient threshold
+                // Venus can reach maximum elongation between 45-48 degrees
+                if (venusElongation >= 45 && venusElongation <= 48.5) {
+                    // Check if this is a local maximum (peak)
+                    // Calculate elongation for previous and next day to confirm it's a peak
+                    const prevMercuryAngle = (2 * Math.PI / PLANETS.mercury.orbitalPeriod) * (tempTime - 1);
+                    const prevVenusAngle = Math.PI / 3 + (2 * Math.PI / PLANETS.venus.orbitalPeriod) * (tempTime - 1);
+                    const prevEarthAngle = (2 * Math.PI / PLANETS.earth.orbitalPeriod) * (tempTime - 1);
+                    
+                    const prevVenusPos = new THREE.Vector3(
+                        Math.cos(prevVenusAngle) * PLANETS.venus.orbitalRadius,
+                        0,
+                        Math.sin(prevVenusAngle) * PLANETS.venus.orbitalRadius
+                    );
+                    const prevEarthPos = new THREE.Vector3(
+                        Math.cos(prevEarthAngle) * PLANETS.earth.orbitalRadius,
+                        0,
+                        Math.sin(prevEarthAngle) * PLANETS.earth.orbitalRadius
+                    );
+                    
+                    const prevElongation = parseFloat(calculateElongation(prevVenusPos, prevEarthPos));
+                    
+                    // Record if this is higher than previous day (near peak)
+                    if (venusElongation >= prevElongation && venusElongation >= 46.5) {
+                        events.push({
+                            date: new Date(currentDate),
+                            days: tempTime,
+                            type: 'venus-max',
+                            name: '🌟 Kim tinh cực đại ly giác',
+                            description: `Góc ly giác: ${venusElongation}°`,
+                            planet: 'venus'
+                        });
+                    }
+                }
+                
+                // Check for conjunction Venus (< 3°)
+                if (venusElongation < 3) {
+                    events.push({
+                        date: new Date(currentDate),
+                        days: tempTime,
+                        type: 'venus-conjunction',
+                        name: '🌑 Kim tinh hợp nhật',
+                        description: `Góc ly giác: ${venusElongation}°`,
+                        planet: 'venus'
+                    });
+                }
+                
+                // Check for maximum elongation Mercury (>= 26°)
+                if (mercuryElongation >= 26 && mercuryElongation <= 29) {
+                    events.push({
+                        date: new Date(currentDate),
+                        days: tempTime,
+                        type: 'mercury-max',
+                        name: '⭐ Thủy tinh cực đại ly giác',
+                        description: `Góc ly giác: ${mercuryElongation}°`,
+                        planet: 'mercury'
+                    });
+                }
+                
+                // Determine Venus phase (Evening Star or Morning Star)
+                const relativeAngle = ((venusAngle - earthAngle) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+                const relativeAngleDeg = relativeAngle * 180 / Math.PI;
+                
+                // Check for Venus as Evening Star (ahead of Earth, visible after sunset)
+                if (relativeAngleDeg > 0 && relativeAngleDeg < 180 && venusElongation > 15 && venusElongation < 47) {
+                    // Record every 30 days to avoid too many events
+                    if (tempTime % 30 === 0) {
+                        events.push({
+                            date: new Date(currentDate),
+                            days: tempTime,
+                            type: 'venus-evening',
+                            name: '⭐ Kim tinh là Sao Hôm',
+                            description: `Thấy sau hoàng hôn, ly giác: ${venusElongation}°`,
+                            planet: 'venus'
+                        });
+                    }
+                }
+                
+                // Check for Venus as Morning Star (behind Earth, visible before sunrise)
+                if (relativeAngleDeg >= 180 && relativeAngleDeg < 360 && venusElongation > 15 && venusElongation < 47) {
+                    // Record every 30 days to avoid too many events
+                    if (tempTime % 30 === 0) {
+                        events.push({
+                            date: new Date(currentDate),
+                            days: tempTime,
+                            type: 'venus-morning',
+                            name: '🌅 Kim tinh là Sao Mai',
+                            description: `Thấy trước bình minh, ly giác: ${venusElongation}°`,
+                            planet: 'venus'
+                        });
+                    }
+                }
+                
+                tempTime += step;
+                currentDate.setDate(currentDate.getDate() + step);
+            }
+            
+            // Remove duplicates (events within 5 days of each other)
+            const uniqueEvents = [];
+            events.forEach(event => {
+                const isDuplicate = uniqueEvents.some(e => 
+                    e.type === event.type && 
+                    Math.abs(e.days - event.days) < 5
+                );
+                if (!isDuplicate) {
+                    uniqueEvents.push(event);
+                }
+            });
+            
+            return uniqueEvents.sort((a, b) => a.days - b.days);
+        }
+        
+        function displayEvents(events) {
+            const eventsList = document.getElementById('events-list');
+            eventsList.innerHTML = '';
+            
+            events.forEach(event => {
+                const eventDiv = document.createElement('div');
+                eventDiv.className = `event-item ${event.planet}`;
+                eventDiv.innerHTML = `
+                    <div class="event-date">${event.date.toLocaleDateString('vi-VN')}</div>
+                    <div>${event.name}</div>
+                    <div style="font-size: 11px; color: #d1d5db; margin-top: 3px;">${event.description}</div>
+                `;
+                eventDiv.addEventListener('click', () => {
+                    jumpToEvent(event);
+                });
+                eventsList.appendChild(eventDiv);
+            });
+        }
+        
+        function jumpToEvent(event) {
+            // Update planet angles
+            PLANETS.mercury.angle = (2 * Math.PI / PLANETS.mercury.orbitalPeriod) * event.days;
+            PLANETS.venus.angle = Math.PI / 3 + (2 * Math.PI / PLANETS.venus.orbitalPeriod) * event.days;
+            PLANETS.earth.angle = (2 * Math.PI / PLANETS.earth.orbitalPeriod) * event.days;
+            
+            updatePlanetPositions();
+            updateInfoPanel();
+        }
+        
+        function updatePlanetPositions() {
+            // Update 3D positions
+            mercury.position.set(
+                Math.cos(PLANETS.mercury.angle) * PLANETS.mercury.orbitalRadius,
+                0,
+                Math.sin(PLANETS.mercury.angle) * PLANETS.mercury.orbitalRadius
+            );
+            
+            venus.position.set(
+                Math.cos(PLANETS.venus.angle) * PLANETS.venus.orbitalRadius,
+                0,
+                Math.sin(PLANETS.venus.angle) * PLANETS.venus.orbitalRadius
+            );
+            
+            earth.position.set(
+                Math.cos(PLANETS.earth.angle) * PLANETS.earth.orbitalRadius,
+                0,
+                Math.sin(PLANETS.earth.angle) * PLANETS.earth.orbitalRadius
+            );
+            
+            // Update camera target
+            updateCameraTarget();
+            
+            // Update angle lines
+            updateAngleLines();
+            
+            // Update planet labels
+            updatePlanetLabels();
+        }
+        
+        function updatePlanets(deltaTime) {
+            const days = deltaTime * speed / 1000; // Convert ms to days
+            
+            // Update planet positions using Kepler's laws
+            for (let key in PLANETS) {
+                const planet = PLANETS[key];
+                const angularVelocity = (2 * Math.PI) / planet.orbitalPeriod;
+                planet.angle += angularVelocity * days;
+                planet.angle = planet.angle % (2 * Math.PI);
+            }
+            
+            updatePlanetPositions();
+            updateInfoPanel();
+        }
+
+        function updateInfoPanel() {
+            // Mercury info
+            const mercuryAngleDeg = ((PLANETS.mercury.angle * 180 / Math.PI) % 360).toFixed(1);
+            document.getElementById('mercury-angle').textContent = `${mercuryAngleDeg}°`;
+            document.getElementById('mercury-distance').textContent = `${(PLANETS.mercury.orbitalRadius / AU).toFixed(3)} AU`;
+            
+            // Venus info
+            const venusAngleDeg = ((PLANETS.venus.angle * 180 / Math.PI) % 360).toFixed(1);
+            document.getElementById('venus-angle').textContent = `${venusAngleDeg}°`;
+            
+            // Earth info
+            const earthAngleDeg = ((PLANETS.earth.angle * 180 / Math.PI) % 360).toFixed(1);
+            document.getElementById('earth-angle').textContent = `${earthAngleDeg}°`;
+            
+            // Calculate elongation for Venus using 3D positions
+            const elongation = calculateElongation(venus.position, earth.position);
+            document.getElementById('venus-elongation').textContent = `${elongation}°`;
+            
+            // Determine Venus phase
+            const phase = determineVenusPhase(parseFloat(elongation), PLANETS.venus.angle, PLANETS.earth.angle);
+            document.getElementById('venus-phase').textContent = phase;
+            
+            // Update phenomenon text
+            let phenomenonText = '';
+            const elongVal = parseFloat(elongation);
+            
+            if (elongVal > 45) {
+                phenomenonText = `🌟 <strong>Cực đại ly giác!</strong><br>Kim tinh đang ở góc cực đại (~48°) so với Mặt Trời khi nhìn từ Trái Đất. Đây là thời điểm tốt nhất để quan sát Kim tinh!<br><small>Góc ly giác hiện tại: ${elongation}°</small>`;
+            } else if (elongVal < 5) {
+                phenomenonText = `🌑 <strong>Hợp nhật!</strong><br>Kim tinh đang nằm gần trên đường nối Trái Đất - Mặt Trời. Kim tinh không thể quan sát được từ Trái Đất vào lúc này.<br><small>Góc ly giác: ${elongation}°</small>`;
+            } else if (phase.includes('SAO HÔM')) {
+                phenomenonText = `🌆 <strong>Sao Hôm</strong><br>Kim tinh xuất hiện về phía Tây sau khi Mặt Trời lặn. Quan sát được vào buổi tối. Chu kỳ Sao Mai ↔ Sao Hôm: 584 ngày.<br><small>Góc ly giác: ${elongation}°</small>`;
+            } else if (phase.includes('SAO MAI')) {
+                phenomenonText = `🌅 <strong>Sao Mai</strong><br>Kim tinh xuất hiện về phía Đông trước khi Mặt Trời mọc. Quan sát được vào buổi sáng sớm. Chu kỳ Sao Mai ↔ Sao Hôm: 584 ngày.<br><small>Góc ly giác: ${elongation}°</small>`;
+            } else {
+                phenomenonText = `Kim tinh và Thủy tinh là các hành tinh nội, luôn ở gần Mặt Trời khi quan sát từ Trái Đất. Thủy tinh khó quan sát hơn do kích thước nhỏ và gần Mặt Trời.`;
+            }
+            document.getElementById('phenomenon-text').innerHTML = phenomenonText;
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw background stars
+            drawStars();
+            
+            // Draw orbits
+            drawOrbit(PLANETS.mercury.orbitalRadius);
+            drawOrbit(PLANETS.venus.orbitalRadius);
+            drawOrbit(PLANETS.earth.orbitalRadius);
+            
+            // Draw Sun
+            drawSun();
+            
+            // Draw planets and get positions
+            const mercuryPos = drawPlanet(PLANETS.mercury, 'mercury');
+            const venusPos = drawPlanet(PLANETS.venus, 'venus');
+            const earthPos = drawPlanet(PLANETS.earth, 'earth');
+            
+            // Draw sight lines from Earth
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            // Line from Earth to Sun
+            drawSightLine(earthPos.x, earthPos.y, centerX, centerY, 'rgba(255, 215, 0, 0.3)');
+            
+            // Line from Earth to Venus
+            drawSightLine(earthPos.x, earthPos.y, venusPos.x, venusPos.y, 'rgba(251, 191, 36, 0.5)');
+            
+            // Line from Earth to Mercury
+            drawSightLine(earthPos.x, earthPos.y, mercuryPos.x, mercuryPos.y, 'rgba(156, 163, 175, 0.3)');
+        }
+
+        // Animation loop
+        let lastTime = Date.now();
+        function animate() {
+            const currentTime = Date.now();
+            const deltaTime = currentTime - lastTime;
+            lastTime = currentTime;
+            
+            if (isPlaying) {
+                updatePlanets(deltaTime);
+            }
+            
+            // Always update camera target based on center object
+            updateCameraTarget();
+            
+            // Update controls
+            controls.update();
+            
+            // Update planet labels to face camera
+            planetLabels.forEach(label => {
+                label.lookAt(camera.position);
+            });
+            
+            // Render 3D scene
+            renderer.render(scene, camera);
+            labelRenderer.render(scene, camera);
+            
+            requestAnimationFrame(animate);
+        }
+
+        // Controls
+        document.getElementById('playPause').addEventListener('click', function() {
+            isPlaying = !isPlaying;
+            this.textContent = isPlaying ? '⏸️ Tạm dừng' : '▶️ Tiếp tục';
+        });
+
+        document.getElementById('reset').addEventListener('click', function() {
+            PLANETS.mercury.angle = 0;
+            PLANETS.venus.angle = Math.PI / 3;
+            PLANETS.earth.angle = 0;
+            
+            // Reset 3D positions
+            mercury.position.set(PLANETS.mercury.orbitalRadius, 0, 0);
+            venus.position.set(
+                Math.cos(Math.PI / 3) * PLANETS.venus.orbitalRadius,
+                0,
+                Math.sin(Math.PI / 3) * PLANETS.venus.orbitalRadius
+            );
+            earth.position.set(PLANETS.earth.orbitalRadius, 0, 0);
+            
+            updateAngleLines();
+            updateInfoPanel();
+        });
+
+        document.getElementById('speed').addEventListener('input', function() {
+            speed = parseFloat(this.value);
+            document.getElementById('speed-value').textContent = speed.toFixed(1) + 'x';
+        });
+        
+        document.getElementById('showAngles').addEventListener('change', function() {
+            showAngles = this.checked;
+            if (!showAngles) {
+                clearAngleLines();
+            } else {
+                updateAngleLines();
+            }
+        });
+
+        // Initialize Three.js and start animation
+        initThreeJS();
+        
+        // Set initial positions
+        mercury.position.set(PLANETS.mercury.orbitalRadius, 0, 0);
+        venus.position.set(
+            Math.cos(Math.PI / 3) * PLANETS.venus.orbitalRadius,
+            0,
+            Math.sin(Math.PI / 3) * PLANETS.venus.orbitalRadius
+        );
+        earth.position.set(PLANETS.earth.orbitalRadius, 0, 0);
+        
+        // Toggle GUI Button
+        const toggleGuiBtn = document.getElementById('toggle-gui-btn');
+        let guiVisible = true;
+        
+        toggleGuiBtn.addEventListener('click', () => {
+            guiVisible = !guiVisible;
+            const guiPanels = document.querySelectorAll('.gui-panel');
+            
+            guiPanels.forEach(panel => {
+                if (guiVisible) {
+                    panel.classList.remove('hidden');
+                } else {
+                    panel.classList.add('hidden');
+                }
+            });
+            
+            // Update button icon
+            toggleGuiBtn.textContent = guiVisible ? '👁️' : '👁️‍🗨️';
+        });
+        
+        // Center selector buttons
+        document.querySelectorAll('.center-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                setCenterObject(this.dataset.center);
+            });
+        });
+        
+        
+        updateAngleLines();
+        updatePlanetLabels();
+        updateInfoPanel();
+        animate();
+    </script>
+</body>
+</html>
